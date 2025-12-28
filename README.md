@@ -1,4 +1,4 @@
-# Interswitch Mobile FE Assessment
+# Switch Pay DEMO
 
 A secure React Native mobile banking app built for the Interswitch Frontend Mobile.
 
