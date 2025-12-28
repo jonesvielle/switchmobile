@@ -1,17 +1,21 @@
-# Resolve react_native_pods.rb with node to allow for hoisting
-require Pod::Executable.execute_command('node', ['-p',
+# Resolve react_native_pods.rb with node to allow for hoisting (monorepo/Yarn/Pnpm friendly)
+require Pod::Executable.execute_command('node', [
+  '-p',
   'require.resolve(
     "react-native/scripts/react_native_pods.rb",
     {paths: [process.argv[1]]},
-  )', __dir__]).strip
+  )',
+  __dir__
+]).strip
 
 platform :ios, min_ios_version_supported
+
 prepare_react_native_project!
 
 linkage = ENV['USE_FRAMEWORKS']
-if linkage != nil
-  Pod::UI.puts "Configuring Pod with #{linkage}ally linked Frameworks".green
-  use_frameworks! :linkage => linkage.to_sym
+if linkage
+  Pod::UI.puts "Configuring Pods with #{linkage}ally linked Frameworks".green
+  use_frameworks! linkage: linkage.to_sym
 end
 
 target 'switchmobile' do
@@ -19,16 +23,38 @@ target 'switchmobile' do
 
   use_react_native!(
     :path => config[:reactNativePath],
+    # Hermes / Fabric / TurboModules flags — enable as needed
+    # :hermes_enabled => true,
+    # :fabric_enabled  => true,
     # An absolute path to your application root.
     :app_path => "#{Pod::Config.instance.installation_root}/.."
   )
 
+  # ─────────────────────────────────────────────────────────────
+  # ↓ Post-install block – very important for deployment target issues
   post_install do |installer|
     react_native_post_install(
       installer,
       config[:reactNativePath],
-      :mac_catalyst_enabled => false,
-      # :ccache_enabled => true
+      :mac_catalyst_enabled => false
+      # :ccache_enabled => true   # optional, speeds up builds if you have ccache
     )
+
+    # Force minimum deployment target on ALL pods (fixes CxxStdlib/Xcode 16.2+ bug)
+    installer.pods_project.targets.each do |target|
+      target.build_configurations.each do |config|
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '16.0'   # ← change to your desired min version
+      end
+    end
+
+    # Optional: fix some common bitcode/symbol issues on newer Xcode
+    installer.generated_projects.each do |project|
+      project.targets.each do |target|
+        target.build_configurations.each do |config|
+          config.build_settings['ENABLE_BITCODE'] = 'NO'
+        end
+      end
+    end
   end
+  # ─────────────────────────────────────────────────────────────
 end

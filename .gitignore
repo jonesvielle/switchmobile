@@ -2,6 +2,13 @@
 #
 .DS_Store
 
+.env
+
+*.jks
+*.apk
+*.keystore
+gradle.properties
+
 # Xcode
 #
 build/
